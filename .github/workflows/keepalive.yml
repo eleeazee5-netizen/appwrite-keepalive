@@ -1,36 +1,30 @@
-name: Appwrite Keepalive
+name: Simple Appwrite Keepalive
 
 on:
   schedule:
-    # Runs every 5 days at midnight UTC
-    # Appwrite pauses projects after 7 days of inactivity
-    # 5 days gives us a safe buffer
-    - cron: "0 0 */5 * *"
-
-  # Allow manual trigger for testing
-  workflow_dispatch:
+    - cron: '0 0 */4 * *' # Runs automatically every 4 days
+  workflow_dispatch: # Allows you to run it manually
 
 jobs:
-  keepalive:
-    name: Send Heartbeat
+  ping:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Run keepalive
-        run: bun run keepalive
-        env:
-          APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
-          APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
-          APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
-          APPWRITE_PROJECTS: ${{ secrets.APPWRITE_PROJECTS }}
+      - name: Ping Appwrite Project
+        run: |
+          echo "Pinging Appwrite Server API to keep project active..."
+          
+          # This makes a safe GET request to list your databases using your API Key
+          # It does NOT create anything, so it won't hit your free tier limits.
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.APPWRITE_ENDPOINT }}/databases" \
+            -H "X-Appwrite-Project: ${{ secrets.APPWRITE_PROJECT_ID }}" \
+            -H "X-Appwrite-Key: ${{ secrets.APPWRITE_API_KEY }}" \
+            -H "Content-Type: application/json")
+            
+          echo "Response status: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 200 ]; then
+            echo "Keepalive successful! Timer reset."
+          else
+            echo "Keepalive failed with HTTP status $HTTP_STATUS. Check your API key and endpoint."
+            exit 1
+          fi
